@@ -8,6 +8,8 @@ start transaction;
 	select *
 	from shop.users
 	where shop.users.id = 1;
+    delete from shop.users 
+    where shop.users.id = 1;
 commit;
 
 /*2 Создайте представление, которое выводит название name товарной позиции 
@@ -31,8 +33,9 @@ from product_name;
 если она отсутствует.*/
 use Sample;
 -- v1
-select birthday_at, if(birthday_at in('2018-08-01', '2016-08-04', '2018-08-16', '2018-08-17'), 1, 0)
-from users;
+select birthday_at, if(birthday_at in('2018-08-01', '2016-08-04', '2018-08-16', '2018-08-17'), 1, 0) as birthday_in_day
+from users
+where month(birthday_at) = 8 ;
 
 /*update users
 set birthday_at = '2018-08-17'
