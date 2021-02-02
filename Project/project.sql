@@ -124,9 +124,6 @@ constraint fk_client_email foreign key(email) references email(entity_id),
 index client_names (client_name)
 );*/
 
-alter table clients change column reference_id entity_id int8 unsigned not null comment "link to entity table"
-
-
 /*alter table clients auto_increment=10000;*/
 
 /*delimiter $$
@@ -172,14 +169,14 @@ constraint fk_delivering_carrier foreign key (carrier) references carriers(entit
 );*/
 
 /*alter table deliverings add column send_date datetime, add column expectind_receiving datetime, add column date_received datetime;*/
-delimiter $$
+/*delimiter $$
 create trigger tg_deliverings_orderid 
 			before insert
             on deliverings
             for each row
             set new.orderid = concat(client_id, to_address_id,'/',entity_id)
             end;
-delimiter ;
+delimiter ;*/
 
 
 -- create index idx_carrier on deliverings (carrier);
@@ -212,130 +209,245 @@ constraint x_delivering foreign key (delivering) references deliverings(entity_i
 constraint x_client foreign key (client_id) references clients(reference_id),
 constraint x_invoice foreign key (invoice_id) references invoices(entity_id)
 )*/
--- ****************************************************************************************************
 
 
-
-
-
-
-
-
-create table log (
+/*create table log (
 id int8 unsigned not null auto_increment primary key,
-
-)
-
-create trigger add_data_to_log on delete on clients
+entity_id int8 unsigned not null,
+entity_name varchar(100),
+event_date datetime
+);*/
+/*
+delimiter $$
+create trigger tg_client_to_log after insert on clients
 for each row 
 begin
-	insert into log 
-		set name = old.name ...
-end;
+	insert into log (entity_id, entity_name, event_date)
+		values (new.entity_id, new.client_name, now());
+end$$
+delimiter ;
 
+delimiter $$
+create trigger tg_delivering_to_log after insert on deliverings
+for each row 
+begin
+	insert into log (entity_id, entity_name, event_date)
+		values (new.entity_id, 'delivering', now());
+end$$
+delimiter ;
+*/
 -- ***********************************************************************************************
-create view current_deliverings
+/*create view current_deliverings
 as
-select *
-from deliverings
-inner join clients
+select d.order_id,
+os.description as order_status,
+a_from.city as city_from,
+a_to.city as city_to
+, a_to.address_1 as address_to
+, a_to.is_branch
+, d.carrier
+, d.fragile
+, d. dangerous
+, d.flamable
+, d.notes
+, c_to.client_name
+, p.phone as contact_phone
+, p.notes as contact_notes
+from deliverings as d
+inner join clients as c_from
+	on d.from_id = c_from.entity_id
+inner join clients as c_to
+	on d.to_id = c_to.entity_id
+left join phone as p
+	on c_to.contact_phone = p.id
+inner join address as a_from
+	on d.from_address_id = a_from.entity_id
+inner join address as a_to
+	on d.to_address_id = a_to.entity_id
+inner join order_status as os
+	on d.order_status = os.id
+where d.completed <> 0
+;*/
 
-inner join address
 
-inner join phone
-;
-
-create view recent_payments (
-
-)
-
-;
-/*create view our_branches as (
+create or replace view our_branches as (
 	select 
-    country
+    id
+    , entity_id
+    , country
     , region
     , city
     , address_1
-    , address_2
+    , zip
     from address 
-    where  is_branch = true
-);*/
-
-
-
+    where  is_branch = 1
+);
 
 -- *********************************************************************************************
+/*
+drop procedure if exists create_delivering;
 delimiter $$
-create procedure create_delivering (client_from, 
-									client_to, 
-                                    address_from,
-                                    address_to, 
-                                    cost, 
-                                    paid,
-                                    who_paid,
-                                    fragile,
-                                    dungerous,
-                                    flamable,
-                                    notes)
+create procedure create_delivering (client_from int8, 
+									client_to int8, 
+                                    address_from int8,
+                                    address_to int8, 
+                                    cost float, 
+                                    paid boolean,
+                                    who_paid int8,
+                                    fragile boolean,
+                                    dangerous boolean,
+                                    flamable boolean,
+                                    notes varchar(1000) )
 begin
-	lock tables entity_table write;
-
 		declare now datetime;
         declare id_entity int8 unsigned;
         declare order_status int4;
         
         
-        set now = now()
-		insert into entity_table (created_at, updated_at)
+        set now = now();
+		insert into entity_table (created, updated)
         values (now, now);
         
-        set id_entity = select entity_id from emtoty_table order by entity_id desc limit 1;
-        set order_satus = select id from order_status where decription = 'Open';
+        set id_entity = (select entity_id from entity_table order by entity_id desc limit 1);
+        set order_status = (select id from order_status where description = 'Open');
         
-        insert into deliverings(entity_id, order_status, from_address_id, to_address_id, from_id, to_id, cost, paid, pay_client_ref, fragile, dungerous, flamable, notes)
-        values(id_entity, order_status, address_from, address_to, client_from, client_to, const, paid, who_paid, fragile, dungerous, flamable, notes)  
+        insert into deliverings(entity_id, order_status, from_address_id, to_address_id, from_id, to_id, cost, paid, pay_client_ref, fragile, dangerous, flamable, notes)
+        values(id_entity, order_status, address_from, address_to, client_from, client_to, cost, paid, who_paid, fragile, dangerous, flamable, notes)  ;
 
-	unlock tables;
 end$$
 
 delimiter ;
 
-create procedure change_status_for_delivering ()
+call create_delivering (1000692, 1000451, 1000185, 1000514, 910.16, 1, 1000451, 0, 0, 0, "Test delivering SP");*/
+
+
+
+/*delimiter $$
+create procedure add_client(in client_name varchar(50)
+								, first_name varchar(50)
+                                , last_name varchar(50)
+                                , middle_name varchar(50)
+                                , country varchar(50)
+                                , region varchar(50)
+                                , city varchar(50)
+                                , address_1 varchar(50)
+                                , zip varchar(11)
+                                , is_branch tinyint(1)
+                                , legal_entity_address tinyint(1)
+                                , phone varchar(14)
+                                , can_sms tinyint(1)
+                                , email varchar(255)
+                                , dob datetime
+                                , other_contact_method varchar(100))
 begin
-
-end;
-
-create procedure add_client()
-begin
-
-SET autocommit=0;
-LOCK TABLES t1 WRITE, t2 READ, ...;
-... do something with tables t1 and t2 here ...
-COMMIT;
-UNLOCK TABLES;
-	start transaction
-		try
-        SELECT LAST_INSERT_ID() FROM `table`
-			insert into entity_table
-			insert into phone
-			insert into address
+	declare client_entity_id int8;
+    declare address_entity_id int8;
+    declare phone_entity_id int8;
+    declare email_entity_id int8;
+    declare client_status smallint;
+	
+    start transaction;	
+	
+    -- entity_id for client
+    insert into entity_table(created, updated, deleted)
+    values (now(), now(), 0);
+    set client_entity_id = (select entity_id from entity_table order by entity_id desc limit 1);
     
-			insert into clients
-		except
-        rollback
-    end;
-end;
+    -- entity_id for address
+    insert into entity_table(created, updated, deleted)
+    values (now(), now(), 0); 
+    set address_entity_id = (select entity_id from entity_table order by entity_id desc limit 1);
+    
 
-create procedure client_search()
+    
+    -- entity_id for phone
+    insert into entity_table(created, updated, deleted)
+    values (now(), now(), 0); 
+    set phone_entity_id = (select entity_id from entity_table order by entity_id desc limit 1);
+        
+    -- entity_id for email
+    insert into entity_table(created, updated, deleted)
+    values (now(), now(), 0); 
+    set email_entity_id = (select entity_id from entity_table order by entity_id desc limit 1);
+    
+	insert into address (entity_id, country, region, city, address_1, zip, is_branch, legal_entity_address)
+    values (address+entity_id, country, region, city, address_1, zip, is_branch, legal_entity_address);
+    
+    insert into email (entity_id, email)
+    values (email_entity_id, email);
+    
+    insert into phone (id, phone)
+    values (id, phone);
+    
+    set client_status = (select id from client_status where status_description = 'Active');
+    
+    insert into clients (entity_id, client_status, client_name, first_name, last_name, middle_name, address, contact_phone, can_sms, email, other_contact_method,
+			date_of_birth, legal_entity)
+	values (client_entity_id, client_status, client_name, first_name, last_name, middle_name, address_entity_id, phone_entity_id, can_sms,
+			email_entity_id, other_contact_method, dob, legal_entity_address);    
+    
+commit;
+
+end$$
+delimiter ;*/
+
+/*
+
+drop procedure client_search
+delimiter $$
+create procedure client_search(in client_name varchar(100)
+								, city varchar(50)
+                                , address_1 varchar(50)
+                                , first_name varchar(50)
+                                , last_name varchar(50)
+                                , phone varchar(14))
 begin
+	select cl.entity_id 
+	from clients as cl
+    inner join address as ad
+    on cl.address = ad.entity_id   
+    inner join phone as p
+    on cl.contact_phone = p.id 
+    where ad.city = ifnull(city, 0) 
+			or ad.address_1 = ifnull(address_1, 0)
+            or cl.client_name = ifnull(client_name, 0)
+            or cl.first_name = ifnull(first_name, 0)
+			or cl.last_name = ifnull(last_name, 0)
+            or p.phone = ifnull(phone, 0);
 
-end;
+end$$
+delimiter ;
+*/
 
-
-create procedure delivering_serach()
+/*
+drop procedure if exists delivering_search
+delimiter $$
+create procedure delivering_search(in city varchar(50)
+									, client_id int8 
+                                    , completed boolean
+                                    , sent_date date
+                                    , received date)
 begin
+	select distinct d.entity_id
+    from deliverings as d
+    inner join address as a1
+		on d.from_address_id = a1.entity_id
+	inner join address as a2
+		on d.to_address_id = a2.entity_id
+	inner join clients as cl1
+		on d.from_id = cl1.entity_id
+    inner join clients as cl2
+		on d.to_id = cl2.entity_id 
+	where ((a1.city = ifnull(city, 0) or a2.city = ifnull(city, 0))
+			or (cl1.entity_id = ifnull(client_id, 0) or cl2.entity_id = ifnull(client_id, 0))
+            or d.send_date = ifnull(sent_date, '1970-01-01') 
+            or d.date_received = ifnull(received, '1970-01-01') 
+            )             
+            and d.completed = completed;
+end $$
 
-end
+delimiter ; */
+
 
 
 
