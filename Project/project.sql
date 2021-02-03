@@ -30,6 +30,10 @@ constraint ch_phone_format check (length(phone) >= 7),
 index phone(phone)
 );*/
 
+alter table phone add constraint fk_phone_et foreign key (id) references entity_table(entity_id) ON update cascade
+
+
+
 /*create table order_status(
 id int4 unsigned primary key,
 description varchar(50),
@@ -53,6 +57,7 @@ index idx_city(city),
 constraint fk_address_et foreign key (entity_id) references entity_table(entity_id) ON update cascade
 );*/
 
+alter table address add constraint fk_address_et foreign key (entity_id) references entity_table(entity_id) ON update cascade
 
 /*create table email(
 id int4 unsigned auto_increment primary key,
@@ -64,6 +69,7 @@ constraint ch_email_format check (email REGEXP '^[^@]+@[^@]+\.[^@]{2,}$'),  -- o
 index email(email)
 );*/
 
+alter table email add constraint fk_email_et foreign key (entity_id) references entity_table(entity_id) ON update cascade;
 
 /*create table payment_info(
 id int4 unsigned auto_increment primary key comment 'internal id',
@@ -81,6 +87,8 @@ constraint fk_payment_info_entity_table foreign key (entity_id) references entit
 
 );*/
 
+alter table payment_info add constraint fk_payment_info_entity_table foreign key (entity_id) references entity_table(entity_id) on delete restrict on update cascade;
+
 
 /*create table carriers (
 id int4 unsigned not null auto_increment primary key,
@@ -96,6 +104,8 @@ other_data varchar(200),
 constraint fk_carrier_documents foreign key (document_type) references document_types(id),
 constraint fk_carriers_et foreign key(entity_id) references entity_table(entity_id)
 );*/
+
+alter table carriers add constraint fk_carriers_et foreign key(entity_id) references entity_table(entity_id)
 
 
 /*create table clients (
@@ -123,6 +133,13 @@ constraint fk_client_email foreign key(email) references email(entity_id),
 
 index client_names (client_name)
 );*/
+
+
+alter table clients add constraint fk_clients_et foreign key (reference_id) references entity_table(entity_id) ON DELETE restrict ON update cascade;
+alter table clients add constraint fk_clients_phone foreign key (contact_phone) references phone(id) ON DELETE set null ON update cascade;
+alter table clients add constraint fk_client_payment foreign key(payment_information) references payment_info(entity_id);
+alter table clients add constraint fk_client_email foreign key (email) references email(entity_id);
+
 
 /*alter table clients auto_increment=10000;*/
 
@@ -168,6 +185,7 @@ CONSTRAINT fk_deliverings_payclient FOREIGN KEY (pay_client_ref) references clie
 constraint fk_delivering_carrier foreign key (carrier) references carriers(entity_id)
 );*/
 
+
 /*alter table deliverings add column send_date datetime, add column expectind_receiving datetime, add column date_received datetime;*/
 /*delimiter $$
 create trigger tg_deliverings_orderid 
@@ -197,6 +215,8 @@ fully_paid boolean default false,
 constraint fk_invoices_entity_table foreign key (entity_id) references entity_table(entity_id) on delete restrict on update cascade,
 constraint fk_invoices_client foreign key (client_id) references clients(reference_id) on delete restrict on update cascade
 );*/
+
+
 
 /*create table x_delivering_invoice 
 (
@@ -269,7 +289,7 @@ inner join order_status as os
 where d.completed <> 0
 ;*/
 
-
+/*
 create or replace view our_branches as (
 	select 
     id
@@ -281,7 +301,7 @@ create or replace view our_branches as (
     , zip
     from address 
     where  is_branch = 1
-);
+);*/
 
 -- *********************************************************************************************
 /*
